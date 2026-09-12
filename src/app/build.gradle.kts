@@ -76,4 +76,6 @@ dependencies {
     // Optional: Add icons for your Play/Next buttons
     implementation("androidx.compose.material:material-icons-extended")
 
+    // Palette API for extracting colors from album art
+    implementation("androidx.palette:palette-ktx:1.0.0")
 }

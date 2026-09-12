@@ -9,6 +9,9 @@ import android.service.notification.StatusBarNotification
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import android.media.session.MediaSession
+import androidx.palette.graphics.Palette
+import androidx.compose.ui.graphics.Color
 
 class MediaListenerService : NotificationListenerService() {
 
@@ -29,11 +32,14 @@ class MediaListenerService : NotificationListenerService() {
 
     private val callback = object : MediaController.Callback() {
         override fun onMetadataChanged(metadata: MediaMetadata?) {
-            updateTrack(metadata, activeController?.playbackState)
+            updateTrack(metadata, activeController?.playbackState, activeController?.queue)
         }
         override fun onPlaybackStateChanged(state: PlaybackState?) {
-            updateTrack(activeController?.metadata, state)
+            updateTrack(activeController?.metadata, state, activeController?.queue)
             restartPositionPolling(state)
+        }
+        override fun onQueueChanged(queue: MutableList<MediaSession.QueueItem>?) {
+            updateTrack(activeController?.metadata, activeController?.playbackState, queue)
         }
     }
 
@@ -69,7 +75,7 @@ class MediaListenerService : NotificationListenerService() {
         activeController = controllers.firstOrNull()
         activeController?.registerCallback(callback)
 
-        updateTrack(activeController?.metadata, activeController?.playbackState)
+        updateTrack(activeController?.metadata, activeController?.playbackState, activeController?.queue)
         restartPositionPolling(activeController?.playbackState)
 
         _controller.value = activeController
@@ -108,7 +114,7 @@ class MediaListenerService : NotificationListenerService() {
         }
     }
 
-    private fun updateTrack(metadata: MediaMetadata?, state: PlaybackState?) {
+    private fun updateTrack(metadata: MediaMetadata?, state: PlaybackState?, queue: MutableList<MediaSession.QueueItem>? = null) {
         if (metadata == null) {
             _trackState.value = null
             _isPlaying.value = false
@@ -117,6 +123,43 @@ class MediaListenerService : NotificationListenerService() {
 
         val playing = state?.state == PlaybackState.STATE_PLAYING
 
+        val albumArt = metadata.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
+            ?: metadata.getBitmap(MediaMetadata.METADATA_KEY_ART)
+        
+        var dominantColor: Color? = null
+        if (albumArt != null) {
+            try {
+                val palette = Palette.from(albumArt).generate()
+                val dominantInt = palette.getDominantColor(android.graphics.Color.TRANSPARENT)
+                if (dominantInt != android.graphics.Color.TRANSPARENT) {
+                    dominantColor = Color(dominantInt)
+                }
+            } catch (e: Exception) {
+                // Ignore failure to generate palette
+            }
+        }
+
+        var nextTrackStr = ""
+        var nextArtistStr = ""
+        try {
+            val q = queue ?: activeController?.queue
+            if (!q.isNullOrEmpty() && state != null) {
+                val activeId = state.activeQueueItemId
+                if (activeId != MediaSession.QueueItem.UNKNOWN_ID) {
+                    val currentIndex = q.indexOfFirst { it.queueId == activeId }
+                    if (currentIndex != -1 && currentIndex + 1 < q.size) {
+                        val nextItem = q[currentIndex + 1]
+                        nextTrackStr = nextItem.description.title?.toString() ?: ""
+                        nextArtistStr = nextItem.description.subtitle?.toString()
+                            ?: nextItem.description.description?.toString()
+                            ?: ""
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            // Safe fallback to prevent crashes on queue reading
+        }
+
         _isPlaying.value = playing
         _trackState.value = TrackInfo(
             title   = metadata.getString(MediaMetadata.METADATA_KEY_TITLE) ?: "Unknown",
@@ -124,8 +167,10 @@ class MediaListenerService : NotificationListenerService() {
                 ?: metadata.getString(MediaMetadata.METADATA_KEY_ALBUM_ARTIST)
                 ?: "Unknown",
             album   = metadata.getString(MediaMetadata.METADATA_KEY_ALBUM) ?: "",
-            albumArt = metadata.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
-                ?: metadata.getBitmap(MediaMetadata.METADATA_KEY_ART),
+            nextTrack = nextTrackStr,
+            nextArtist = nextArtistStr,
+            albumArt = albumArt,
+            dominantColor = dominantColor,
             isPlaying = playing,
             sourceApp = getAppLabel(activeController?.packageName),
             position = state?.position ?: 0L,

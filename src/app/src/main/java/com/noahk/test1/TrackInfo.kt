@@ -1,6 +1,7 @@
 package com.noahk.NowPlayingCarView
 
 import android.graphics.Bitmap
+import androidx.compose.ui.graphics.Color
 
 data class TrackInfo(
     val title: String,
@@ -9,6 +10,7 @@ data class TrackInfo(
     val nextTrack: String = "",
     val nextArtist: String = "",
     val albumArt: Bitmap? = null,
+    val dominantColor: Color? = null,
     val isPlaying: Boolean = false,
     val sourceApp: String = "",
     val position: Long = 0L,

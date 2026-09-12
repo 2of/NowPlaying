@@ -54,7 +54,7 @@ fun NowPlayingPanel(track: TrackInfo?, modifier: Modifier = Modifier) {
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.ExtraBold,
                                 letterSpacing = 2.sp,
-                                color = MaterialTheme.colorScheme.outline,
+                                color = currentTrack.dominantColor ?: MaterialTheme.colorScheme.outline,
                                 textAlign = TextAlign.End,
                                 modifier = Modifier.fillMaxWidth()
                             )
@@ -147,7 +147,7 @@ fun NowPlayingPanel(track: TrackInfo?, modifier: Modifier = Modifier) {
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(10.dp),
-                                color = MaterialTheme.colorScheme.primary,
+                                color = currentTrack.dominantColor ?: MaterialTheme.colorScheme.primary,
                                 trackColor = MaterialTheme.colorScheme.surfaceVariant
                             )
 
@@ -180,11 +180,15 @@ fun NowPlayingPanel(track: TrackInfo?, modifier: Modifier = Modifier) {
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.ExtraBold,
                                 letterSpacing = 2.sp,
-                                color = MaterialTheme.colorScheme.outline
+                                color = currentTrack.dominantColor ?: MaterialTheme.colorScheme.outline
                             )
                             Spacer(Modifier.height(2.dp))
                             Text(
-                                text = currentTrack.nextTrack,
+                                text = if (currentTrack.nextArtist.isNotBlank()) {
+                                    "${currentTrack.nextTrack} • ${currentTrack.nextArtist}"
+                                } else {
+                                    currentTrack.nextTrack
+                                },
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
